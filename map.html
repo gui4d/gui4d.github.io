@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="leaflet/leaflet.css">
+    <script src="leaflet/leaflet.js"></script>
+    <script src="papaparse.min.js"></script>
+    <style>
+      body {
+          padding: 0;
+          margin: 0;
+      }
+      html, body, #image-map {
+          height: 100%;
+          width: 100%;
+          z-index: 1;
+      }
+      .leaflet-container {
+        background: white;
+      }
+      .leaflet-control-layers-expanded {
+        width : 150px;
+      }
+      .leaflet-popup-content-wrapper h3 {
+        text-align: center;
+      }
+      .search {
+        width: 150px;
+        padding: 6px  10px 6px 6px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        border-radius: 5px;
+      }
+      .widget {
+        z-index: 2;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        border-radius: 5px;
+      }
+      #fullscreen_btn {
+        position: absolute;
+        right: 20px;
+        bottom: 30px;
+        background-image: url("images/icon-fullscreen.svg");
+        background-repeat: no-repeat;
+        background-size: contain;
+        width: 2em;
+        height: 2em;
+      }
+      #search_selector {
+        width: 100%;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id="image-map"></div>
+    <div id="fullscreen_btn" class="widget" onclick="toggleFullScreen()"></div>
+
+    <script>
+    // Using leaflet.js with a simple image
+    // Tutorial : http://leafletjs.com/examples/crs-simple/crs-simple.html
+
+    var map = L.map('image-map', {
+      minZoom: -2,
+      crs: L.CRS.Simple
+    });
+
+    // Control box / interactive legend
+    var controls = L.control.layers(null,null);
+
+    // Search box
+
+    var searchBox = L.control({position:'topright'});
+    searchBox.onAdd = function (map) {
+      this._div = L.DomUtil.create('div', 'search'); // create a div with a class "search"
+      selectorHTML = '<select  id="search_selector">\n<option value="">-- Rechercher --</option>\n</select>';
+      this._div.innerHTML = selectorHTML;
+      return this._div;
+    };
+  searchBox.addTo(map);
+
+
+
+
+    // overlayMaps will contain layers of markers
+    var overlayMaps = {};
+
+    /* dimensions of the image
+        width = 4961
+        height = 3508
+        url = 'images/fond.jpg'
+    */
+    var bounds = [[0,0], [3508,4961]];
+    var image = L.imageOverlay('images/fond.jpg', bounds).addTo(map);
+    map.fitBounds(bounds);
+
+      // Loading data from CSV for markers
+      //csv="https://docs.google.com/spreadsheets/d/1QS9BD4ZlFyO5kvYfIxsF1vi0wi0SjV_liR0Dt6oarZk/export?format=csv&#gid=1562113055";
+      //csv="data/markers.csv"
+      csv="data/Donnees_carte - data.csv"
+      Papa.parse(csv, {
+  	       download: true,
+           encoding: "UTF-8",
+           header: true,
+  	       dynamicTyping: true,
+           skipEmptyLines: true,
+           complete: function(results) {
+  		         addMarkers(results.data);
+  	       }
+       });
+
+       // Custom icons
+       var blueIcon = L.icon({
+         iconUrl:       'leaflet/images/marker-icon.png',
+         iconRetinaUrl: 'leaflet/images/marker-icon-2x.png',
+         shadowUrl:     'leaflet/images/marker-shadow.png',
+         iconSize:    [25, 41],
+         iconAnchor:  [12, 41],
+         popupAnchor: [1, -34],
+         tooltipAnchor: [16, -28],
+         shadowSize:  [41, 41]
+       });
+
+       var redIcon = L.icon({
+         iconUrl:       'leaflet/images/marker-icon_red.png',
+         iconRetinaUrl: 'leaflet/images/marker-icon-2x_red.png',
+         shadowUrl:     'leaflet/images/marker-shadow.png',
+         iconSize:    [25, 41],
+         iconAnchor:  [12, 41],
+         popupAnchor: [1, -34],
+         tooltipAnchor: [16, -28],
+         shadowSize:  [41, 41]
+       });
+
+       var greenIcon = L.icon({
+         iconUrl:       'leaflet/images/marker-icon_green.png',
+         iconRetinaUrl: 'leaflet/images/marker-icon-2x_green.png',
+         shadowUrl:     'leaflet/images/marker-shadow.png',
+         iconSize:    [25, 41],
+         iconAnchor:  [12, 41],
+         popupAnchor: [1, -34],
+         tooltipAnchor: [16, -28],
+         shadowSize:  [41, 41]
+       });
+
+
+       // Predefined marker types
+       var types = [
+         {
+           name: "Aménagements",
+           icon: blueIcon
+         },
+         {
+           name: "Arbres fruitiers",
+           icon: greenIcon
+         },
+         {
+           name: "Baies",
+           icon: greenIcon
+         },
+         {
+           name: "Fleurs",
+           icon: greenIcon
+         },
+         {
+           name: "Plantes aromatiques",
+           icon: greenIcon
+         },
+         {
+           name: "Potager",
+           icon: redIcon
+         },
+         {
+           name: "Divers",
+           icon: greenIcon
+         }
+       ];
+
+       // Search in data set
+       function searchMarkers(marker_name, data) {
+         // De-zoom
+         map.fitBounds(bounds);
+
+          // Create layer with search results
+          var search_results = data.filterProp("name", marker_name).toMarkers(redIcon);
+          var LayerGroup = L.layerGroup(search_results).addTo(map);
+
+          // Remove previous searchs from map.
+          for (var i = 0; i < controls._layers.length; i++) {
+            var layergroup = controls._layers[i]
+            if (layergroup.name.includes("Recherche")) { layergroup.layer.removeFrom(map);};
+          };
+
+          controls.addOverlay(LayerGroup, "Recherche : " + marker_name);
+         };
+
+      // functions used in addMarkers below
+      Array.prototype.filterProp = function(prop, term){
+        // return an array of object where obj.prop == term
+        return this.filter(obj => obj[ prop ] == term);
+      };
+      Array.prototype.toMarkers = function(custom_icon){
+        return this.map(customMarker => {
+          return L.marker(customMarker, {icon: custom_icon}).bindPopup(customMarker.popup, { minWidth: 150})});
+      };
+
+      function enableSearch(data){
+        // Enable search in markers
+        var searchSelector = document.getElementById("search_selector")
+        searchTerms = new Set(data.map(x => x.name).sort());
+
+        var searchSelectorInnerHTML = '<option selected value="">-- Rechercher --</option>\n';
+
+        searchTerms.forEach(function(term) {
+          searchSelectorInnerHTML += '<option value="'+ term + '">'+ term + '</option>\n';
+        });
+
+        searchSelector.innerHTML = searchSelectorInnerHTML;
+
+        searchSelector.addEventListener("change", function(){
+          searchMarkers(searchSelector.value,data);
+        });
+
+      };
+
+      // Adding markers to leaflet map
+      function addMarkers(data) {
+
+        // Add markers from dataset
+        for (var i = 0; i < types.length; i++){ // for each marker type
+
+          var markers = [];
+          var type = types[i];
+
+          markers = data.filterProp("type", type.name).toMarkers(type.icon);
+
+          var LayerGroup = L.layerGroup(markers);
+
+          overlayMaps[ type.name ] = LayerGroup.addTo(map); // add layer with markers to overlayMaps
+          controls.addOverlay(LayerGroup, type.name).addTo(map); // add overlay to controls
+        };
+        enableSearch(data);
+
+        // expand controls on big screens
+        if (document.getElementById("image-map").offsetWidth > 960) {controls.expand();};
+      };
+
+      // A way to get leaflet coordinates with right click
+      map.on('contextmenu', function(e) {
+          alert("Lat, Lon : " + e.latlng.lat + ", " + e.latlng.lng)
+      });
+
+
+      // Toggle fullscreen
+      function toggleFullScreen() {
+        if ((document.fullScreenElement && document.fullScreenElement !== null) ||
+         (!document.mozFullScreen && !document.webkitIsFullScreen)) {
+          if (document.documentElement.requestFullScreen) {
+            document.documentElement.requestFullScreen();
+          } else if (document.documentElement.mozRequestFullScreen) {
+            document.documentElement.mozRequestFullScreen();
+          } else if (document.documentElement.webkitRequestFullScreen) {
+            document.documentElement.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+          }
+        } else {
+          if (document.cancelFullScreen) {
+            document.cancelFullScreen();
+          } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+          } else if (document.webkitCancelFullScreen) {
+            document.webkitCancelFullScreen();
+          }
+        }
+      };
+
+
+    </script>
+
+  </body>
+</html>
