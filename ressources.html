@@ -9,18 +9,28 @@
 </head>
 
 <body>
+	<!--################# template website ######################-->
 	<input type='text' id='input' placeholder="ENTER SOME SQL" size='50'
-		value="CREATE TABLE test(val);INSERT INTO test VALUES (666); SELECT * FROM test">
+		value="">
+		<!--CREATE TABLE test(val);INSERT INTO test VALUES (666); SELECT * FROM test-->
 	<button id='submit'>Execute</button>
 	<pre id='result'></pre>
 	<pre id='error'></pre>
+	<!--###########################################-->
+	
+	
 	<script>
 
 		//Open a blank database
 		var db;
-		initSqlJs({ locateFile: filename => `sql-js/${filename}` }).then(function (SQL) {
-			db = new SQL.Database();
+		let config = {  locateFile: () => "sql-js/sql-wasm.wasm" };
+		initSqlJs(config).then(function (SQL) {
+					db = new SQL.Database();
 		});
+
+		//initSqlJs({ locateFile: filename => `sql-js/${filename}` }).then(function (SQL) {
+		//	db = new SQL.Database();
+		//});
 
 		document.getElementById('submit').onclick = function () {
 			var sql = document.getElementById('input').value;
